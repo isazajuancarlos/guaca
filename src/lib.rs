@@ -19,8 +19,10 @@
 //!
 //! [Quipu]: https://crates.io/crates/quipu
 
+pub mod claves;
 pub mod firma;
 pub mod reposo;
+pub mod sesion;
 
 use quipu::dictionary::Dictionary;
 
