@@ -5,8 +5,10 @@
 //! _Una guaca es un tesoro enterrado y protegido — aquí, los datos en reposo._
 //!
 //! Protección en reposo para aplicaciones, sobre [Quipu]: **cifrado autenticado**
-//! de archivos y blobs sensibles ([`reposo`]), y **firma** de registros con
-//! integridad y no repudio post-cuánticos ([`firma`]).
+//! de archivos y blobs sensibles ([`reposo`]), **firma** de registros con
+//! integridad y no repudio post-cuánticos ([`firma`]), **bitácora encadenada** a
+//! prueba de manipulación ([`auditoria`]) y **custodia de claves** por KDF +
+//! Shamir ([`custodia`]).
 //!
 //! Nace de una constatación medida: medico e informes copiaban la misma sesión y
 //! el mismo endurecimiento de secreto, y las copias YA habían divergido —una
@@ -19,7 +21,9 @@
 //!
 //! [Quipu]: https://crates.io/crates/quipu
 
+pub mod auditoria;
 pub mod claves;
+pub mod custodia;
 pub mod firma;
 pub mod reposo;
 pub mod sesion;

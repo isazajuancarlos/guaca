@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Juan Carlos Isaza Arenas
 [package]
 name = "guaca"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Protección en reposo para aplicaciones: cifrado autenticado y firma de registros sobre Quipu (post-cuántico híbrido)."
 authors = ["Juan Carlos Isaza Arenas <isazajuancarlos@gmail.com>"]
@@ -13,7 +13,8 @@ keywords = ["encryption", "at-rest", "post-quantum", "signing", "quipu"]
 categories = ["cryptography"]
 
 [dependencies]
-quipu = "0.10"
+# `escrow` abre quipu::shamir (custodia); no arrastra dependencias, solo el módulo.
+quipu = { version = "0.10", features = ["escrow"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Sesión (token HMAC firmado) y contraseñas (Argon2). Primitivos que medico e
@@ -23,3 +24,5 @@ sha2 = "0.10"
 base64 = "0.22"
 argon2 = "0.5"
 password-hash = { version = "0.5", features = ["std"] }
+# Custodia: el secreto reconstruido por Shamir se borra de memoria al soltarlo.
+zeroize = "1"

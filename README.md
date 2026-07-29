@@ -5,7 +5,7 @@
 
 _Una guaca es un tesoro enterrado y protegido — aquí, los datos en reposo._
 
-Dos capas, una fachada delgada (no reimplementa criptografía):
+Una fachada delgada (no reimplementa criptografía):
 
 - **`reposo`** — cifrado autenticado de archivos y blobs sensibles (KDF Argon2 +
   AEAD + padding que oculta la longitud). Para imágenes clínicas, entregas,
@@ -13,6 +13,16 @@ Dos capas, una fachada delgada (no reimplementa criptografía):
 - **`firma`** — integridad y no repudio post-cuánticos (Ed25519 + ML-DSA-87) de un
   registro. La firma se rompe si el registro cambia; distingue «alterado» de
   «firma inválida».
+- **`auditoria`** — bitácora append-only **encadenada por hash y firmada**: cada
+  entrada apunta a la anterior, así que borrar o reordenar rompe la cadena, no
+  solo alterar. El primitivo a prueba de manipulación para una bitácora de acceso
+  (Ley 1581 / OWASP A09).
+- **`custodia`** — **derivar** una clave de un secreto de despliegue (Argon2) y
+  **repartirla** para respaldo con Shamir (2-de-3, como el seed del OPRF): ningún
+  sitio único guarda la clave entera. Para respaldo, no para firma rutinaria.
+
+También trae `claves` (Argon2 para contraseñas) y `sesion` (token HMAC firmado),
+los primitivos que medico e informes tenían duplicados.
 
 ## Por qué existe
 
@@ -36,6 +46,21 @@ let (clave_publica, clave_privada) = firma::generar_claves();
 let datos = firma::canonico(&campos);      // JSON canónico determinista
 let sig = firma::firmar(&datos, &clave_privada).unwrap();
 assert_eq!(firma::verificar(&datos, &sig, &clave_publica), firma::Verificacion::Valida);
+```
+
+```rust
+use guaca::{auditoria, custodia};
+use guaca::auditoria::GENESIS;
+
+// Bitácora encadenada: sellar la entrada n sobre el hash de la n-1.
+let sello = auditoria::sellar(0, GENESIS, &campos, &clave_privada).unwrap();
+// … guardar (secuencia, hash_anterior, contenido, sello.hash, sello.firma) …
+// y más tarde, releer la tabla y comprobar la cadena entera:
+assert_eq!(auditoria::verificar(&entradas, &clave_publica), auditoria::Auditoria::Intacta);
+
+// Custodia: respaldar una clave repartida 2-de-3.
+let partes = custodia::repartir(clave_privada.as_bytes(), 2, 3).unwrap();
+let recuperada = custodia::recuperar(&partes[..2].to_vec()).unwrap();
 ```
 
 **La frase de cifrado y la clave privada de firma NUNCA se guardan junto al dato.**
