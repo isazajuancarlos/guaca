@@ -1,0 +1,34 @@
+# cargo-deny — control de cadena de suministro (lección Atomic Arch, #143).
+# guaca es una librería pública (AGPL) sobre Quipu. Exige que TODA dependencia
+# venga de crates.io, prohíbe comodines de versión y controla licencias.
+
+[advisories]
+version = 2
+
+[licenses]
+version = 2
+# Allowlist ajustada al árbol real (directiva 23): una licencia nueva = rojo.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+    # guaca y quipu son AGPL (de casa; licencia comercial aparte).
+    "AGPL-3.0-or-later",
+]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+# guaca solo depende de quipu (crates.io); ninguna dep git.
+unknown-registry = "deny"
+unknown-git = "deny"
