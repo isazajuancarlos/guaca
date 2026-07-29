@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Juan Carlos Isaza Arenas
 [package]
 name = "guaca"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "Protección en reposo para aplicaciones: cifrado autenticado y firma de registros sobre Quipu (post-cuántico híbrido)."
 authors = ["Juan Carlos Isaza Arenas <isazajuancarlos@gmail.com>"]

@@ -83,7 +83,27 @@ fn hash_de(preimagen: &[u8]) -> [u8; 32] {
     h.finalize().into()
 }
 
-/// Sella una entrada nueva: dada la anterior (su `hash` va en `hash_anterior`, o
+/// Sella una entrada nueva **con un firmante cualquiera**: `firmar` recibe la
+/// preimagen canónica y devuelve un token de firma (o `None` si no puede). Esto
+/// desacopla la cadena del esquema de firma: sirve el doble por defecto
+/// ([`sellar`]) o el triple (Ed25519 + ML-DSA-87 + SLH-DSA) para lo que deba
+/// aguantar décadas, como una cadena de custodia.
+pub fn sellar_con<F>(
+    secuencia: u64,
+    hash_anterior: [u8; 32],
+    contenido: &BTreeMap<String, Value>,
+    firmar: F,
+) -> Option<Sellado>
+where
+    F: Fn(&[u8]) -> Option<String>,
+{
+    let pre = preimagen(secuencia, &hash_anterior, contenido);
+    let firma = firmar(&pre)?;
+    Some(Sellado { hash: hash_de(&pre), firma })
+}
+
+/// Sella con la firma **doble** por defecto ([`crate::firma`]). Atajo de
+/// [`sellar_con`]. Dada la entrada anterior (su `hash` va en `hash_anterior`, o
 /// [`GENESIS`] si es la primera) y el `contenido`, devuelve el hash y la firma.
 /// `None` si la clave privada no es válida.
 pub fn sellar(
@@ -92,15 +112,19 @@ pub fn sellar(
     contenido: &BTreeMap<String, Value>,
     clave_privada_hex: &str,
 ) -> Option<Sellado> {
-    let pre = preimagen(secuencia, &hash_anterior, contenido);
-    let firma = crate::firma::firmar(&pre, clave_privada_hex)?;
-    Some(Sellado { hash: hash_de(&pre), firma })
+    sellar_con(secuencia, hash_anterior, contenido, |pre| {
+        crate::firma::firmar(pre, clave_privada_hex)
+    })
 }
 
-/// Verifica una cadena entera: cada eslabón, cada hash, cada firma y la
-/// contigüidad de las secuencias. Devuelve la PRIMERA ruptura, o `Intacta`.
-/// Una cadena vacía es trivialmente `Intacta`.
-pub fn verificar(entradas: &[Entrada], clave_publica_hex: &str) -> Auditoria {
+/// Verifica una cadena entera **con un verificador de firma cualquiera**:
+/// `verificar_firma(preimagen, token)` devuelve si la firma vale. Comprueba cada
+/// eslabón, cada hash, cada firma y la contigüidad de las secuencias; devuelve la
+/// PRIMERA ruptura, o `Intacta`. Una cadena vacía es trivialmente `Intacta`.
+pub fn verificar_con<F>(entradas: &[Entrada], verificar_firma: F) -> Auditoria
+where
+    F: Fn(&[u8], &str) -> bool,
+{
     let mut esperado_anterior = GENESIS;
     let mut secuencia_previa: Option<u64> = None;
 
@@ -117,13 +141,21 @@ pub fn verificar(entradas: &[Entrada], clave_publica_hex: &str) -> Auditoria {
         if hash_de(&pre) != e.hash {
             return Auditoria::Rota { secuencia: e.secuencia, motivo: Motivo::Hash };
         }
-        if crate::firma::verificar(&pre, &e.firma, clave_publica_hex) != crate::firma::Verificacion::Valida {
+        if !verificar_firma(&pre, &e.firma) {
             return Auditoria::Rota { secuencia: e.secuencia, motivo: Motivo::Firma };
         }
         esperado_anterior = e.hash;
         secuencia_previa = Some(e.secuencia);
     }
     Auditoria::Intacta
+}
+
+/// Verifica con la firma **doble** por defecto ([`crate::firma`]). Atajo de
+/// [`verificar_con`].
+pub fn verificar(entradas: &[Entrada], clave_publica_hex: &str) -> Auditoria {
+    verificar_con(entradas, |pre, token| {
+        crate::firma::verificar(pre, token, clave_publica_hex) == crate::firma::Verificacion::Valida
+    })
 }
 
 fn a_hex(b: &[u8]) -> String {
@@ -252,5 +284,54 @@ mod pruebas {
         // completitud la da el contador de secuencia del consumidor; que
         // discrimine eso es correcto, no un fallo.
         assert_eq!(verificar(&larga[..80], &vk), Auditoria::Intacta);
+    }
+
+    /// El camino GENÉRICO (`sellar_con`/`verificar_con`) funciona con closures
+    /// que pone el llamante — así tunjo le inyecta su firmante TRIPLE
+    /// (Ed25519 + ML-DSA-87 + SLH-DSA) para la cadena de custodia. Aquí se prueba
+    /// con el doble por closures explícitos (rápido); el triple lo prueba tunjo,
+    /// que ya corre en release por el coste de SLH-DSA.
+    #[test]
+    fn el_camino_generico_acepta_un_firmante_del_llamante() {
+        let (vk, sk) = crate::firma::generar_claves();
+        let firmar = |pre: &[u8]| crate::firma::firmar(pre, &sk);
+        let verif = |pre: &[u8], tok: &str| {
+            crate::firma::verificar(pre, tok, &vk) == crate::firma::Verificacion::Valida
+        };
+
+        let mut entradas = Vec::new();
+        let mut anterior = GENESIS;
+        for i in 0..4 {
+            let cont = contenido("perito", &format!("evento_{i}"));
+            let s = sellar_con(i, anterior, &cont, firmar).unwrap();
+            entradas.push(Entrada {
+                secuencia: i,
+                hash_anterior: anterior,
+                contenido: cont,
+                hash: s.hash,
+                firma: s.firma,
+            });
+            anterior = s.hash;
+        }
+        assert_eq!(verificar_con(&entradas, verif), Auditoria::Intacta);
+
+        // Alterar un eslabón rompe la cadena por el hash.
+        let mut rota = entradas.clone();
+        rota[2].contenido = contenido("perito", "evento_falsificado");
+        assert_eq!(
+            verificar_con(&rota, verif),
+            Auditoria::Rota { secuencia: 2, motivo: Motivo::Hash }
+        );
+
+        // Un verificador con OTRA clave rechaza la firma (motivo Firma): el
+        // camino genérico comprueba la firma de verdad, no la da por buena.
+        let (otra_vk, _) = crate::firma::generar_claves();
+        let verif_otro = |pre: &[u8], tok: &str| {
+            crate::firma::verificar(pre, tok, &otra_vk) == crate::firma::Verificacion::Valida
+        };
+        assert_eq!(
+            verificar_con(&entradas, verif_otro),
+            Auditoria::Rota { secuencia: 0, motivo: Motivo::Firma }
+        );
     }
 }
