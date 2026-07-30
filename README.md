@@ -21,6 +21,13 @@ Una fachada delgada (no reimplementa criptografía):
   **repartirla** para respaldo con Shamir (2-de-3, como el seed del OPRF): ningún
   sitio único guarda la clave entera. Para respaldo, no para firma rutinaria.
 
+- **`freno`** — la regla que frena el ensayo de contraseñas: tras cinco fallos
+  seguidos del mismo origen contra el mismo correo, el siguiente intento espera, y
+  la espera se dobla hasta un techo de cinco minutos. **No bloquea la cuenta**, a
+  propósito: un bloqueo convierte cinco peticiones de un desconocido en un usuario
+  legítimo fuera del sistema. No toca la base — la app trae sus filas y `evaluar`
+  decide, porque lo que diverge al copiar es la regla, no el `INSERT`.
+
 También trae `claves` (Argon2 para contraseñas) y `sesion` (token HMAC firmado),
 los primitivos que medico e informes tenían duplicados.
 
