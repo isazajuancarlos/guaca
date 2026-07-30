@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Juan Carlos Isaza Arenas
 [package]
 name = "guaca"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 description = "Protección en reposo para aplicaciones: cifrado autenticado y firma de registros sobre Quipu (post-cuántico híbrido)."
 authors = ["Juan Carlos Isaza Arenas <isazajuancarlos@gmail.com>"]
@@ -24,5 +24,9 @@ sha2 = "0.10"
 base64 = "0.22"
 argon2 = "0.5"
 password-hash = { version = "0.5", features = ["std"] }
+# Freno al ensayo de contraseñas: la regla decide sobre marcas de tiempo RFC 3339
+# —que es como las guardan las dos apps— y las parsea ella, porque qué hacer con
+# una marca ilegible es una decisión de seguridad y no puede quedarse en la app.
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 # Custodia: el secreto reconstruido por Shamir se borra de memoria al soltarlo.
 zeroize = "1"

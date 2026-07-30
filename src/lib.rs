@@ -8,7 +8,8 @@
 //! de archivos y blobs sensibles ([`reposo`]), **firma** de registros con
 //! integridad y no repudio post-cuánticos ([`firma`]), **bitácora encadenada** a
 //! prueba de manipulación ([`auditoria`]) y **custodia de claves** por KDF +
-//! Shamir ([`custodia`]).
+//! Shamir ([`custodia`]). Y, en la puerta de entrada, el **freno al ensayo de
+//! contraseñas** ([`freno`]).
 //!
 //! Nace de una constatación medida: medico e informes copiaban la misma sesión y
 //! el mismo endurecimiento de secreto, y las copias YA habían divergido —una
@@ -25,6 +26,7 @@ pub mod auditoria;
 pub mod claves;
 pub mod custodia;
 pub mod firma;
+pub mod freno;
 pub mod reposo;
 pub mod sesion;
 
