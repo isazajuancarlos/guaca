@@ -39,8 +39,23 @@ que sella 100 entradas y altera 16 posiciones, cada una con firma híbrida Ed255
 cadena es O(n). Al iterar sobre otro módulo, filtra por nombre; no vale la pena
 mover nada a `release` por esto.
 
-`Cargo.lock` **no se versiona** (es librería). Lo que fija la versión de guaca en
-sus consumidores es el `rev` de git de ellos, no este lock.
+**`Cargo.lock` SÍ se versiona desde el 2026-08-04**, y no por convención sino por
+una ceguera medida: sin él, el grafo de dependencias de GitHub solo veía los
+**10** crates nombrados en `Cargo.toml` de un árbol de **119**, así que las
+alertas de Dependabot no alcanzaban ni una primitiva criptográfica —`ml-dsa`,
+`ml-kem`, `curve25519-dalek`, `ed25519-dalek`, `chacha20poly1305`, `subtle`,
+`getrandom`, `quipu-nucleo`…—. Una alarma que no ve el 92% del árbol da
+«sin alertas» y «sin mirar» con la misma cara. Los cinco repositorios hermanos ya
+lo versionaban; guaca era la excepción.
+
+**No afecta a los consumidores**: cargo ignora el lock de una dependencia, así
+que medico, informes y tunjo siguen resolviendo el suyo. Lo que fija la versión
+de guaca en ellos es su `rev` de git, no este archivo.
+
+El precio, para que no sorprenda: el CI pasa a probar un árbol **fijado** en vez
+de «lo último compatible», así que ya no cazará solo que una versión nueva de una
+dependencia rompa algo. Eso lo cubre el PR semanal agrupado de Dependabot, que es
+exactamente una resolución fresca puesta a correr contra las pruebas.
 
 ## Los dos tipos de módulo
 
@@ -184,6 +199,22 @@ rama → PR → merge.
 guaca es público, así que sus minutos de Actions son gratis: la suspensión de
 `push`/`merge` por cupo agotado que describe la configuración general afecta a
 los repos privados, no a este.
+
+**Las tres piezas de esto son distintas y se confunden:** `dependabot.yml`
+programa las actualizaciones **rutinarias**; las **alertas** de Dependabot y las
+**correcciones automáticas** son ajustes del repositorio, no archivos, y se
+encendieron el 2026-08-04 (estaban las dos apagadas). Se comprueban así, y el
+segundo comando es el bueno porque responde con cuerpo en vez de con un código:
+
+```bash
+gh api repos/isazajuancarlos/guaca/vulnerability-alerts -i | head -1  # 204=on, 404=off
+gh api repos/isazajuancarlos/guaca/automated-security-fixes           # {"enabled":true,...}
+gh api repos/isazajuancarlos/guaca/dependency-graph/sbom \
+  --jq '[.sbom.packages[]|select(.name|test("/")|not)]|length'        # crates que VE
+```
+
+Ese último es el que importa: si devuelve 10 y no ~119, el lock no está en la
+rama por defecto y la alarma está ciega otra vez.
 
 **Las actualizaciones las avisa `dependabot.yml`**, semanal, agrupando lo
 compatible en un solo PR y dejando FUERA los saltos de línea mayor — cada uno de
