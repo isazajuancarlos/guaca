@@ -22,6 +22,11 @@
 //!
 //! [Quipu]: https://crates.io/crates/quipu
 
+// `unsafe` cero GARANTIZADO por el compilador, como los seis paquetes de Quipu.
+// guaca no reimplementa criptografía; tampoco tiene motivo para salirse del
+// Rust seguro, y una regla que el compilador impone no se puede olvidar.
+#![forbid(unsafe_code)]
+
 pub mod auditoria;
 pub mod claves;
 pub mod custodia;

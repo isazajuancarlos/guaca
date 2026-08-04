@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Aviso automático de actualizaciones. Existe porque el 2026-08-04, al revisar
+# las de guaca a mano, salió que NADA estaba pendiente por seguridad —1169 avisos
+# en la base de RustSec, `cargo deny check advisories` en verde— pero que nada
+# iba a avisar el día que sí lo estuviera. `cargo-deny` corre en cada PR y es la
+# red que MUERDE; esto es lo que hace que haya un PR que revisar.
+#
+# NUNCA poner `target-branch` en una entrada. Desconecta esa entrada de las
+# actualizaciones de SEGURIDAD —que van siempre contra la rama por defecto— y lo
+# hace en silencio: se queda pareciendo que vigila. El ruido se arregla
+# agrupando, que es lo de abajo, no cambiando de rama.
+version: 2
+updates:
+  # --- Las dependencias de Rust -------------------------------------------
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    # Un solo PR con todo lo compatible, en vez de uno por crate. guaca tiene
+    # diez dependencias directas y casi todo su árbol es RustCrypto, que se
+    # mueve en bloque: separarlas produce PR que no compilan por su cuenta.
+    groups:
+      compatibles:
+        update-types: [minor, patch]
+    # Los saltos de línea MAYOR quedan fuera del grupo a propósito: cada uno es
+    # una decisión con motivo (directiva 35), no un merge más. Hoy hay cinco
+    # esperando —quipu 0.11, argon2 0.6 (todavía RC), password-hash 0.6, hmac
+    # 0.13, sha2 0.11— y ninguno se sube por inercia.
+    open-pull-requests-limit: 5
+
+  # --- Las acciones del CI -------------------------------------------------
+  # `actions/checkout`, `dtolnay/rust-toolchain` y `Swatinem/rust-cache` corren
+  # con el `GITHUB_TOKEN` del repositorio. Una acción sin mantener es superficie
+  # de cadena de suministro igual que un crate, y no la mira `cargo-deny`.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      acciones:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
