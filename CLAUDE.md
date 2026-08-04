@@ -157,6 +157,20 @@ guaca es público, así que sus minutos de Actions son gratis: la suspensión de
 `push`/`merge` por cupo agotado que describe la configuración general afecta a
 los repos privados, no a este.
 
+**Las actualizaciones las avisa `dependabot.yml`**, semanal, agrupando lo
+compatible en un solo PR y dejando FUERA los saltos de línea mayor — cada uno de
+esos es una decisión con motivo (directiva 35), y hay cinco esperando: `quipu`
+0.11 (deliberado: cambia `Options.codebook_id`), `argon2` 0.6 (todavía RC, así
+que no), `password-hash` 0.6 (bloqueado por argon2 0.5), `hmac` 0.13 y `sha2`
+0.11 (la generación nueva de RustCrypto, que desincronizaría con el `sha2` que
+trae Quipu). Ninguno es de seguridad — medido el 2026-08-04 con `cargo deny check
+advisories` contra una base de 1169 avisos actualizada ese día.
+
+Detalle que no se ve: **`password-hash` está declarada como dependencia directa y
+no se importa en ningún sitio** — `claves.rs` la usa por el reexport
+`argon2::password_hash::…`. La declaración sirve para activarle la feature `std`,
+pero deja la versión escrita en dos sitios que hay que mantener a la par.
+
 **Antes de mergear a `main`: `/security-review` desde ESTA carpeta** (directiva
 25 — guaca está en la lista de repos sensibles). La skill construye su diff con
 el `cwd`; lanzada desde otro repo da un diff vacío en silencio.
