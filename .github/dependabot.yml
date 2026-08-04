@@ -21,11 +21,29 @@ updates:
     # mueve en bloque: separarlas produce PR que no compilan por su cuenta.
     groups:
       compatibles:
+        # `patterns` NO ES OPCIONAL, aunque el grupo parezca completo sin él.
+        # `update-types` solo FILTRA lo que ya entró al grupo; lo que SELECCIONA
+        # quién entra es `patterns`. Sin él el grupo queda vacío y dependabot
+        # abre un PR por crate, en silencio y sin error de sintaxis.
+        #
+        # Medido el 2026-08-04, en la primera corrida tras encenderlo: este
+        # grupo, sin `patterns`, produjo CUATRO PR sueltos (#6 hmac, #7 sha2,
+        # #8 password-hash, #9 base64); el grupo `acciones` de abajo, que sí lo
+        # lleva, produjo UNO. Mismo archivo y misma corrida: es la pareja que
+        # discrimina.
+        patterns: ["*"]
         update-types: [minor, patch]
-    # Los saltos de línea MAYOR quedan fuera del grupo a propósito: cada uno es
-    # una decisión con motivo (directiva 35), no un merge más. Hoy hay cinco
-    # esperando —quipu 0.11, argon2 0.6 (todavía RC), password-hash 0.6, hmac
-    # 0.13, sha2 0.11— y ninguno se sube por inercia.
+    # Y no era cosmético. `sha2` y `hmac` son la misma generación de RustCrypto y
+    # TIENEN que moverse juntos: por separado, el PR de sha2 0.11 muere con
+    # `error[E0277]: the trait bound sha2::Sha256: hmac::digest::core_api::
+    # CoreProxy is not satisfied`. Cuatro PR individuales que no pueden estar
+    # verdes nunca es peor que ninguno — un PR rojo que nadie puede arreglar se
+    # ignora, y a la tercera vez ya nadie mira los de dependabot.
+    #
+    # OJO con «mayor» en crates 0.x: para semver, 0.22 -> 0.23 es MINOR porque el
+    # mayor sigue siendo 0. Así que estos entran en el grupo, que es lo que se
+    # quiere. Lo que queda fuera es un salto de 0.x a 1.x o de 1.x a 2.x, y esos
+    # sí son una decisión con motivo (directiva 35), no un merge más.
     open-pull-requests-limit: 5
 
   # --- Las acciones del CI -------------------------------------------------
