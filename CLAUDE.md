@@ -123,11 +123,22 @@ sparse: `NoSuchKey`). Los tres consumidores la fijan por **`rev` de git**, nunca
 por tag —un tag es mutable, y moverlo a un commit malicioso nos lo traería al
 construir: es el ataque Atomic Arch—:
 
-| Consumidor | Qué usa | `rev` fijado |
+Contado con `grep -o 'guaca::[a-z_]*' | sort | uniq -c` sobre los tres árboles el
+2026-08-04, no deducido del README:
+
+| Consumidor | Qué usa (llamadas) | `rev` fijado |
 |---|---|---|
-| `/mnt/data/medico` | `freno`, `sesion`, `claves` | `2ffe134` |
-| `/mnt/data/informes` | `reposo` (cifrado de entregas), `freno` | `2ffe134`, `version = "0.4"` |
+| `/mnt/data/medico` | `firma` (29), `freno` (7), `auditoria` (4), `reposo` (2) | `2ffe134` |
+| `/mnt/data/informes` | `freno`, `reposo` (cifrado de entregas) | `2ffe134`, `version = "0.4"` |
 | `/mnt/data/tunjo` | `auditoria` con firmante triple propio | `9d26cce` (= tag `v0.3.0`) |
+
+**`claves` y `sesion` no los usa NADIE: cero llamadas en los tres.** Y no es que
+sobren — es que la absorción que justifica el proyecto **no se ha hecho todavía
+en esa mitad**. `informes` sigue hasheando por su cuenta (`cuentas.rs:238`,
+`main.rs:92`, `importar.rs:471`: `SaltString::generate(&mut OsRng)` a mano) y
+declara su propio `password-hash`. Es exactamente la duplicación que el README
+dice en pasado y aún está en presente. Migrar `informes` a `guaca::claves` es lo
+que vuelve cierta esa frase.
 
 **Los dos primeros NO apuntan al tag `v0.4.0`, y conviene saber por qué.** El tag
 se puso el 2026-08-04 sobre `d786d1c` y no sobre `2ffe134`, que es donde se subió
@@ -183,10 +194,14 @@ que no), `password-hash` 0.6 (bloqueado por argon2 0.5), `hmac` 0.13 y `sha2`
 trae Quipu). Ninguno es de seguridad — medido el 2026-08-04 con `cargo deny check
 advisories` contra una base de 1169 avisos actualizada ese día.
 
-Detalle que no se ve: **`password-hash` está declarada como dependencia directa y
-no se importa en ningún sitio** — `claves.rs` la usa por el reexport
-`argon2::password_hash::…`. La declaración sirve para activarle la feature `std`,
-pero deja la versión escrita en dos sitios que hay que mantener a la par.
+**`password-hash` parece una dependencia muerta y no lo es.** `claves.rs` no la
+importa —usa el reexport `argon2::password_hash::…`— y `cargo tree` la enseña
+colgando de argon2, así que se lee como una línea que sobra. Lo que hace es
+habilitar `OsRng`: `password-hash/getrandom` → `rand_core/getrandom` → `pub use
+os::OsRng`, y argon2 0.5 no activa ninguna de las dos. Quitarla mata el build con
+`E0432: unresolved import argon2::password_hash::rand_core::OsRng` — comprobado
+quitándola de verdad, no razonado. El motivo va escrito en la propia línea del
+`Cargo.toml`, que es donde alguien iría a borrarla.
 
 **Antes de mergear a `main`: `/security-review` desde ESTA carpeta** (directiva
 25 — guaca está en la lista de repos sensibles). La skill construye su diff con

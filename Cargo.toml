@@ -23,7 +23,21 @@ hmac = "0.12"
 sha2 = "0.10"
 base64 = "0.22"
 argon2 = "0.5"
-password-hash = { version = "0.5", features = ["std"] }
+# NO SOBRA, aunque lo parezca: `claves.rs` no la importa —usa el reexport
+# `argon2::password_hash::…`— y `cargo tree` la muestra colgando de argon2, así
+# que se lee como una línea muerta. Lo que hace es habilitar `OsRng`, por la
+# cadena `password-hash/getrandom` → `rand_core/getrandom` → `pub use os::OsRng`.
+# argon2 0.5 no activa ninguna de esas: sin esta línea el build muere con
+# `E0432: unresolved import argon2::password_hash::rand_core::OsRng` (comprobado
+# quitándola, 2026-08-04).
+#
+# `getrandom` y no `std`, que era lo que decía antes: `std` es un superconjunto
+# que además arrastra `base64ct/std`, `rand_core/std` y dos `impl
+# std::error::Error`. Guaca no expone NINGÚN `password_hash::Error` —`hashear`
+# devuelve `Option<String>` y `verificar` un `bool`—, así que estaba activando
+# para terceros una API que no puede alcanzarlos. `getrandom` nombra la razón
+# real, que es lo que impide que alguien vuelva a borrar esta línea.
+password-hash = { version = "0.5", features = ["getrandom"] }
 # Freno al ensayo de contraseñas: la regla decide sobre marcas de tiempo RFC 3339
 # —que es como las guardan las dos apps— y las parsea ella, porque qué hacer con
 # una marca ilegible es una decisión de seguridad y no puede quedarse en la app.
