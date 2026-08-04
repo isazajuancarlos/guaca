@@ -125,9 +125,22 @@ construir: es el ataque Atomic Arch—:
 
 | Consumidor | Qué usa | `rev` fijado |
 |---|---|---|
-| `/mnt/data/medico` | `freno`, `sesion`, `claves` | `2ffe134` (= v0.4.0) |
+| `/mnt/data/medico` | `freno`, `sesion`, `claves` | `2ffe134` |
 | `/mnt/data/informes` | `reposo` (cifrado de entregas), `freno` | `2ffe134`, `version = "0.4"` |
 | `/mnt/data/tunjo` | `auditoria` con firmante triple propio | `9d26cce` (= tag `v0.3.0`) |
+
+**Los dos primeros NO apuntan al tag `v0.4.0`, y conviene saber por qué.** El tag
+se puso el 2026-08-04 sobre `d786d1c` y no sobre `2ffe134`, que es donde se subió
+el número: entre esos dos commits `src/`, `Cargo.toml` y `deny.toml` son
+**idénticos** —la librería es la misma— y lo único que añade `d786d1c` es el
+archivo `LICENSE`. Etiquetar `2ffe134` habría dejado una referencia pública
+permanente a un árbol sin licencia, que en un repositorio público GitHub lee como
+«todos los derechos reservados».
+
+La consecuencia es que **medico e informes vendorizan hoy un árbol sin
+`LICENSE`**. No cambia qué código ejecutan —es el mismo—, pero mover los dos
+`rev` a `d786d1c` cuesta una línea en cada uno y deja el árbol completo. Es un
+cambio de otros dos repositorios: el hook de aislamiento preguntará.
 
 **Publicar aquí no actualiza a nadie.** Subir la versión obliga a editar el `rev`
 en cada consumidor que deba recibirlo, y eso es la directiva 24 en la misma
@@ -140,10 +153,14 @@ aquí sola, y subir el requisito es una decisión aparte (la 0.11 cambia el
 comportamiento de `Options.codebook_id`). Verificado en el `Cargo.lock` local:
 resuelve `quipu 0.10.0` de crates.io.
 
-**Pendiente conocido: falta el tag `v0.4.0`.** `Cargo.toml` dice `0.4.0`, hay
-tags hasta `v0.3.0` (local y en `origin`), y los consumidores apuntan al commit
-`2ffe134` a pelo. Verificado con `git tag` y `git ls-remote --tags origin` el
-2026-08-04.
+**Los tags son anotados, uno por versión, y `v0.4.0` se puso el 2026-08-04** —
+faltaba desde que se subió el número—. Los cuatro, comprobados en `origin`:
+`v0.1.0`→`40fb4b4`, `v0.2.0`→`d3d7ab1`, `v0.3.0`→`9d26cce`, `v0.4.0`→`d786d1c`.
+El mensaje sigue la forma de los anteriores: `guaca X.Y.Z — <qué trae>`.
+
+Un tag **no dispara el CI** (el workflow solo escucha `push` a `main` y
+`pull_request`), así que un tag por sí solo no prueba nada. Lo que ancla el
+veredicto es que su commit tenga su propia corrida verde: `d786d1c` la tiene.
 
 ## CI y merge
 
