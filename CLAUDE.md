@@ -98,7 +98,9 @@ Ante cualquiera de los cuatro: versión nueva y migración explícita del
 consumidor, nunca un cambio en sitio.
 
 **Y desde el 2026-08-04 los cuatro tienen VECTOR FIJO, que es lo que convierte
-esa frase en un mecanismo.** Hasta ese día la lista era prosa: todas las pruebas
+esa frase en un mecanismo. Desde el 2026-08-05 son CINCO**: se le añadió el suyo
+a `custodia::derivar`, que se había quedado fuera de aquella pasada y es de
+donde sale la clave maestra. Hasta ese día la lista era prosa: todas las pruebas
 codificaban y decodificaban con el mismo binario, así que medían el códec contra
 sí mismo y habrían pasado en verde con el formato cambiado. Ahora cada una compara
 contra un artefacto **capturado antes y pegado como literal** — un blob cifrado,
@@ -112,7 +114,16 @@ en el CÓDIGO MEDIDO, no en el arnés:
 | `sesion::firmar`: un byte más en el HMAC | `un_token_de_2026_sigue_verificando` |
 | `sesion::verificar`: separador `\|` → `.` | `un_token_de_2026_sigue_verificando` |
 | `custodia::recuperar`: base64 url-safe → estándar | `una_comparticion_de_2026_sigue_recuperando` |
+| `custodia::derivar`: pepper `b""` → `b"mutante"` | `una_clave_derivada_de_2026_no_ha_cambiado` |
 | `firma::canonico`: `to_vec` → `to_vec_pretty` | `el_canonico_ordena_las_claves` (ya existía) |
+
+De ese último mutante salió el dato que justifica el quinto vector, y vale
+guardarlo: con el pepper cambiado, `una_clave_derivada_de_2026_no_ha_cambiado`
+se puso ROJA mientras `la_derivacion_es_determinista` y
+`distinto_salt_da_distinta_clave` **siguieron en verde**. Las dos comparaban
+`derivar()` contra `derivar()` en el mismo binario, que es exactamente el
+defecto que esta lista existe para cerrar — y llevaban desde siempre pareciendo
+cobertura.
 
 **Si una de esas se pone roja, NO se regenera el literal.** Roja significa que lo
 guardado hasta hoy dejó de leerse: archivos cifrados que no abren, bitácoras que
@@ -187,13 +198,35 @@ aquí.
 | `/mnt/data/informes` | `freno`, `reposo` (cifrado de entregas) | `d786d1c`, `version = "0.4"` |
 | `/mnt/data/tunjo` | `auditoria` con firmante triple propio | `9d26cce` (= tag `v0.3.0`) |
 
-**`claves` y `sesion` no los usa NADIE: cero llamadas en los tres.** Y no es que
-sobren — es que la absorción que justifica el proyecto **no se ha hecho todavía
-en esa mitad**. `informes` sigue hasheando por su cuenta (`cuentas.rs:238`,
-`main.rs:92`, `importar.rs:471`: `SaltString::generate(&mut OsRng)` a mano) y
-declara su propio `password-hash`. Es exactamente la duplicación que el README
-dice en pasado y aún está en presente. Migrar `informes` a `guaca::claves` es lo
-que vuelve cierta esa frase.
+**`claves` y `sesion` YA se usan — `informes` migró.** Hasta el 2026-08-04 esto
+decía «no los usa NADIE: cero llamadas en los tres», y describía el trabajo que
+faltaba: `informes` hasheaba por su cuenta con `SaltString::generate(&mut
+OsRng)`. Recontado el **2026-08-05**, la absorción ocurrió: `guaca::claves::hashear`
+se llama desde `siger-api/src/main.rs:107` y `importar.rs:474`, y el censo por
+módulo en los consumidores queda así:
+
+| Módulo | Llamadas | |
+|---|---|---|
+| `claves` | 31 | |
+| `firma` | 28 | |
+| `freno` | 27 | lo comparten `informes` y `medico` |
+| `reposo` | 21 | |
+| `sesion` | 11 | |
+| `auditoria` | 4 | |
+| `custodia` | **0** | nadie todavía — ver abajo |
+
+**`custodia` es el único que sigue sin un solo cliente**, y esa es ahora la
+frase que describe trabajo pendiente. No sobra: es el respaldo de la clave de
+firma partida con Shamir, y quien debería consumirlo aún guarda la clave en el
+entorno. **Su vector fijo se capturó igualmente, y a propósito antes del primer
+cliente**: hacerlo hoy cuesta una prueba; hacerlo después obliga a elegir entre
+romperle la bóveda a alguien o congelar un KDF sin saber cuál era.
+
+Queda un rastro de la etapa anterior que conviene mirar cuando se toque
+`informes`: su `Cargo.toml` sigue declarando `argon2` y `password-hash`, y hay
+un `SaltString::generate` en `pruebas_cronograma.rs:34`. Si ya solo sirven a las
+pruebas, son dependencias que se pueden bajar a `dev-dependencies` — pero eso se
+mide en `informes`, no se supone desde aquí.
 
 **Por qué el tag `v0.4.0` está en `d786d1c` y no en `2ffe134`**, que es donde se
 subió el número y donde apuntaban los dos consumidores hasta esa tarde: entre

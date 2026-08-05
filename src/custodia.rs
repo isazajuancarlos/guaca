@@ -127,9 +127,18 @@ mod pruebas {
     /// 2026 y que aquí seguía abierto — encontrado el 2026-08-05 al verificar la
     /// compatibilidad con quipu 0.11.
     ///
-    /// Lo que hay detrás no es una preferencia de estilo: de esta clave cuelgan
-    /// las bóvedas ya cifradas. Si el KDF se moviera, dejarían de abrirse **y
-    /// ninguna prueba de este archivo lo diría**.
+    /// Lo que hay detrás no es una preferencia de estilo: si el KDF se moviera,
+    /// todo lo derivado con la versión anterior dejaría de abrirse **y ninguna
+    /// prueba de este archivo lo diría**.
+    ///
+    /// El ancla es PROSPECTIVA, y conviene decirlo porque la versión anterior de
+    /// este comentario afirmaba que «de esta clave cuelgan las bóvedas ya
+    /// cifradas» y era **falso**: medido el 2026-08-05, `custodia` tiene **cero
+    /// llamadas** en los consumidores —`claves` 31, `firma` 28, `freno` 27,
+    /// `reposo` 21, `sesion` 11, `auditoria` 4, `custodia` 0—. Que no lo use
+    /// nadie todavía es justo por qué el vector se pone AHORA: capturarlo antes
+    /// del primer cliente cuesta esto; después obliga a elegir entre romperle la
+    /// bóveda o congelar el KDF sin saber cuál era.
     ///
     /// Si se pone roja al subir `quipu` o `argon2`, NO se regenera el literal:
     /// significa que todo lo derivado hasta hoy dejó de abrirse, y eso es una
