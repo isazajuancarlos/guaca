@@ -106,6 +106,38 @@ mod pruebas {
         assert!(verificar(SECRETO, &forjada).is_none());
     }
 
+    /// Un token REAL emitido el 2026-08-04 con guaca 0.4.0, con caducidad puesta a
+    /// doscientos años para que el vector no se pudra: caduca en 2226.
+    const TOKEN_2026: &str = "42|8093089565|UzfoE9NNYV8QtwbmbJzRmQb8iUupLFCkabPtQlslguA";
+
+    /// **El vector fijo.** Las demás pruebas emiten y verifican con el mismo
+    /// binario, así que miden el códec contra sí mismo: pasarían igual si cambiara
+    /// el separador, el orden de los campos o el motor de base64 — y con ello se
+    /// cerraría la sesión de todo el mundo a la vez, sin un solo error en rojo.
+    ///
+    /// Si se pone roja, NO se regenera el literal sin pensarlo: significa que las
+    /// cookies vivas dejan de valer, y eso se decide y se comunica.
+    #[test]
+    fn un_token_de_2026_sigue_verificando() {
+        let s = verificar(SECRETO, TOKEN_2026).expect("el token del 2026-08-04 dejó de verificar");
+        assert_eq!(s.usuario_id, 42);
+    }
+
+    /// Un vector con fecha caduca en silencio: el día que pase 2226 —o que alguien
+    /// ponga el reloj adelante— la prueba de arriba fallaría por caducidad y no por
+    /// formato, y se leería como una rotura que no es. Esto avisa ANTES, con
+    /// margen de diez años, y dice qué hacer.
+    #[test]
+    fn el_vector_de_sesion_no_esta_a_punto_de_caducar() {
+        let s = verificar(SECRETO, TOKEN_2026).unwrap();
+        let diez_anios = 10 * 365 * 24 * 3600;
+        assert!(
+            s.caduca_en - ahora() > diez_anios,
+            "al vector de sesión le quedan menos de diez años: regenerarlo con `emitir(SECRETO, 42, 105_120_000)` \
+             y pegar el resultado, NO relajar esta comprobación"
+        );
+    }
+
     #[test]
     fn otro_secreto_no_vale() {
         let v = emitir(SECRETO, 42, 60);

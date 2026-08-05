@@ -251,6 +251,48 @@ mod pruebas {
         assert_eq!(verificar(&c, &vk), Auditoria::Rota { secuencia: 1, motivo: Motivo::Firma });
     }
 
+    /// El hash de una entrada REAL, calculado el 2026-08-04 con guaca 0.4.0.
+    const HASH_2026: &str = "0016eea23072becad62928333cfb46e8f71cadb79039e5d1ed8c529e14bef077";
+
+    /// **El vector fijo, y aquí el que más pesa.** La preimagen —`{"cont":…,
+    /// "prev":hex,"seq":n}`— es la identidad de toda cadena ya sellada: si cambia
+    /// su forma, cada bitácora guardada pasa a leerse como MANIPULADA, y una
+    /// bitácora que se acusa sola a sí misma es peor que no tenerla.
+    ///
+    /// Ninguna otra prueba lo ve: todas sellan y verifican con el mismo binario,
+    /// así que un cambio de formato les sale coherente consigo mismo y pasan en
+    /// verde. Esta compara contra un valor calculado antes.
+    ///
+    /// El firmante es de mentira A PROPÓSITO: lo que se ata aquí es el hash, que es
+    /// determinista. La firma no lo es y no puede pegarse como literal.
+    #[test]
+    fn el_hash_de_una_entrada_de_2026_no_ha_cambiado() {
+        let s = sellar_con(7, GENESIS, &contenido("dra.ruiz", "abrio_historia"), |_| {
+            Some("firma-de-mentira".to_string())
+        })
+        .unwrap();
+        assert_eq!(
+            a_hex(&s.hash),
+            HASH_2026,
+            "cambió la preimagen de la cadena: TODA bitácora ya sellada pasa a verificar como Rota"
+        );
+    }
+
+    /// La pareja: el hash tiene que MOVERSE con cada campo que la preimagen ata.
+    /// Sin esto, un `preimagen` que devolviera una constante pasaría la de arriba.
+    #[test]
+    fn el_hash_se_mueve_con_cada_campo_de_la_preimagen() {
+        let base = |seq, prev, act| {
+            sellar_con(seq, prev, &contenido("dra.ruiz", act), |_| Some(String::new()))
+                .unwrap()
+                .hash
+        };
+        let referencia = base(7, GENESIS, "abrio_historia");
+        assert_ne!(referencia, base(8, GENESIS, "abrio_historia"), "la secuencia no entra en el hash");
+        assert_ne!(referencia, base(7, [1u8; 32], "abrio_historia"), "el eslabón no entra en el hash");
+        assert_ne!(referencia, base(7, GENESIS, "borro_evidencia"), "el contenido no entra en el hash");
+    }
+
     /// Directiva #8: 100+ operaciones, error inyectado, y que DISCRIMINE.
     ///
     /// El coste real está en la firma híbrida (Ed25519 + ML-DSA-87): en build de

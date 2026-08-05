@@ -62,6 +62,50 @@ mod pruebas {
         assert!(descifrar(&blob, "una-frase-cualquiera-larga-1234").is_err());
     }
 
+    /// Un contenedor cifrado REAL, producido el 2026-08-04 con guaca 0.4.0 y
+    /// pegado aquí en hexadecimal. Empieza por `QUIP`, la cabecera de Quipu.
+    const BLOB_2026: &str = "515549500100000049f8b11875475bdf036861040b044a8b1ca57e3529a0fe92\
+                             d25f7e12a8a09502366c4c20ac1362f99b5f23820cb7a1120001000000000003\
+                             000000016a60791740fb160507bfc20a169465aebb3592a167e4cbf6507f8f72\
+                             d73ba1ee2f966d802d89cf673a28e5485d18ecb5f102dcc7";
+    const FRASE_2026: &str = "frase-de-despliegue-de-mas-de-30-bytes";
+    const CLARO_2026: &[u8] = b"radiografia del paciente 42";
+
+    fn de_hex(s: &str) -> Vec<u8> {
+        let s: String = s.chars().filter(|c| !c.is_whitespace()).collect();
+        (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect()
+    }
+
+    /// **El vector fijo.** `ida_y_vuelta` cifra y descifra con el mismo binario, así
+    /// que mide el códec contra sí mismo: pasaría igual si cambiaran los parámetros
+    /// del KDF, la huella del alfabeto o el formato del contenedor. Esto compara
+    /// contra un archivo que ya está en el disco de un cliente.
+    ///
+    /// Si se pone roja al subir `quipu`, NO se regenera el literal: significa que
+    /// todo lo cifrado hasta hoy dejó de abrirse, y eso se decide, no se tapa.
+    #[test]
+    fn un_blob_de_2026_sigue_descifrando() {
+        let claro = descifrar(&de_hex(BLOB_2026), FRASE_2026)
+            .expect("lo cifrado el 2026-08-04 dejó de abrirse");
+        assert_eq!(claro, CLARO_2026);
+    }
+
+    /// La pareja, y falla por la vía real: el contenedor va atado a la HUELLA del
+    /// alfabeto, así que cambiar `dict()` deja ilegible lo ya guardado. Aquí se
+    /// pide con otra huella y tiene que negarse — si aceptara, el vector de arriba
+    /// no estaría probando el atado, solo la contraseña.
+    #[test]
+    fn con_otra_huella_de_alfabeto_no_abre() {
+        use quipu::api::decode_from_blob;
+        use quipu::dictionary::{Dictionary, HuellaDeCodebook};
+        let otro = Dictionary::new((0x21u8..=0x7du8).map(|b| b as char).collect()).unwrap();
+        assert_ne!(otro.fingerprint(), crate::dict().fingerprint(), "las dos huellas coinciden: el control no discrimina");
+        assert!(
+            decode_from_blob(&de_hex(BLOB_2026), FRASE_2026, otro.fingerprint(), b"").is_err(),
+            "abrió con otra huella de alfabeto: el contenedor no está atado a dict()"
+        );
+    }
+
     #[test]
     fn dos_cifrados_del_mismo_dato_difieren() {
         // Sal y nonce aleatorios: dos blobs del mismo dato no son iguales (no se
