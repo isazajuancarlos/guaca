@@ -327,7 +327,7 @@ rotura de compatibilidad.
 3. Control de que salió bien, antes de dar nada por bueno:
    `grep -c '^name = "quipu"$' Cargo.lock` tiene que dar **1** en tunjo.
 
-`chuspa` no entra en la regla: compila por `path = "../decod"`, así que ya va
+`chuspa` no entra en la regla: compila por `path = "../quipu"`, así que ya va
 contra el árbol por definición.
 
 **La compatibilidad con 0.11 SÍ está verificada** (2026-08-05). Aquí decía que no
