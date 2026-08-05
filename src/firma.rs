@@ -141,4 +141,97 @@ mod pruebas {
         a.insert("id".into(), Value::from(7));
         assert_eq!(canonico(&a), br#"{"estado":"X","id":7,"v":1}"#);
     }
+
+    // ---------------------------------------------------------------------
+    // EL VECTOR FIJO. El sexto, y el que faltaba.
+    // ---------------------------------------------------------------------
+
+    /// Emitido el 2026-08-05 con **guaca `d786d1c` / quipu 0.10.0** —el árbol
+    /// anterior al salto—, y verificado aquí con el binario de hoy.
+    ///
+    /// Lo que ata es la **codificación de la firma híbrida** (Ed25519 +
+    /// ML-DSA-87) y el `dict()` con que se serializa: los dos entran en el
+    /// contenedor firmado y ninguna de las seis pruebas de arriba puede verlos.
+    /// Todas firman y verifican con el MISMO binario, así que un cambio de
+    /// formato les sale coherente consigo mismo y pasan en verde — que es el
+    /// defecto exacto que la lista de vectores existe para cerrar, y `firma`
+    /// era el único módulo persistente que se había quedado fuera.
+    ///
+    /// **Por qué aquí sí se pega la firma como literal y en `auditoria` no.**
+    /// El comentario de `auditoria::el_hash_de_una_entrada_de_2026_no_ha_cambiado`
+    /// dice que la firma «no es determinista y no puede pegarse como literal», y
+    /// es cierto **en la dirección de EMISIÓN**: firmar dos veces lo mismo da dos
+    /// firmas distintas, porque ML-DSA-87 es aleatorizada. Este vector va en la
+    /// dirección contraria, la de VERIFICACIÓN: no afirma que firmar produzca
+    /// estos bytes, afirma que estos bytes —emitidos una vez, por una versión
+    /// anterior— siguen verificando. Eso sí es determinista, y es además la
+    /// única pregunta que importa: un acta ya presentada en un juzgado no se
+    /// vuelve a firmar.
+    ///
+    /// **Quién depende de esto**: medico persiste firmas en `historia.rs:528`
+    /// (historia clínica) y `acceso.rs:222` (la cadena de la bitácora de la Ley
+    /// 1581), y las verifica en `:578` y `:297`. Si esta prueba se pone roja,
+    /// toda historia y toda bitácora ya firmadas pasan a mostrarse como
+    /// `Alterada`/`Rota` — y en un expediente clínico eso no se lee como «cambió
+    /// el formato», se lee como manipulación de la prueba. **No se regenera el
+    /// literal**: rojo significa rotura de compatibilidad, y se decide y se
+    /// comunica.
+    ///
+    /// Los tres van en archivo aparte y no en línea porque la clave pública y la
+    /// firma son de ~5 KB cada una; los otros cinco vectores caben en 94
+    /// caracteres. Son igual de literales: nada los regenera.
+    const FIRMA_2026_CLAVE_PUBLICA: &str = include_str!("vectores/firma_2026_clave_publica.txt");
+    const FIRMA_2026_PREIMAGEN_HEX: &str = include_str!("vectores/firma_2026_preimagen.hex");
+    const FIRMA_2026: &str = include_str!("vectores/firma_2026.txt");
+
+    fn preimagen_del_vector() -> Vec<u8> {
+        let h = FIRMA_2026_PREIMAGEN_HEX.trim();
+        (0..h.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&h[i..i + 2], 16).expect("hex del vector"))
+            .collect()
+    }
+
+    #[test]
+    fn una_firma_de_2026_sigue_verificando() {
+        assert_eq!(
+            verificar(&preimagen_del_vector(), FIRMA_2026.trim(), FIRMA_2026_CLAVE_PUBLICA.trim()),
+            Verificacion::Valida,
+            "una firma emitida con quipu 0.10 dejó de verificar: TODA historia clínica \
+             y TODA bitácora ya firmada pasa a leerse como manipulada"
+        );
+    }
+
+    /// La pareja, y sin ella la de arriba no mide nada: un `verificar` que
+    /// devolviera `Valida` a todo la pasaría igual de verde.
+    ///
+    /// Falla por la VÍA REAL —se altera un byte de la preimagen, que es lo que
+    /// pasa cuando alguien edita un registro ya firmado—, no volteando un byte
+    /// del literal de la firma, que solo probaría que el decodificador rechaza
+    /// basura.
+    #[test]
+    fn el_vector_de_firma_discrimina() {
+        let mut pre = preimagen_del_vector();
+        let n = pre.len();
+        pre[n - 3] ^= 0x01;
+        assert_eq!(
+            verificar(&pre, FIRMA_2026.trim(), FIRMA_2026_CLAVE_PUBLICA.trim()),
+            Verificacion::Alterada,
+            "verifica sobre un contenido alterado: el vector no discrimina y no mide nada"
+        );
+    }
+
+    /// La segunda mitad de la pareja: con OTRA clave pública, el mismo par
+    /// (preimagen, firma) tiene que salir `Invalida`. Cubre el caso en que
+    /// alguien «arregle» un rojo futuro regenerando la clave del vector en vez
+    /// de reconocer la rotura de formato.
+    #[test]
+    fn el_vector_de_firma_no_lo_abre_otra_clave() {
+        let (otra_vk, _) = generar_claves();
+        assert_eq!(
+            verificar(&preimagen_del_vector(), FIRMA_2026.trim(), &otra_vk),
+            Verificacion::Invalida,
+            "otra clave pública valida la firma del vector"
+        );
+    }
 }

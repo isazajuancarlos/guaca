@@ -26,7 +26,7 @@ copiada en dos aplicaciones.
 ## Comandos
 
 ```bash
-cargo test                      # 48 pruebas, ~29 s en debug (medido 2026-08-04)
+cargo test                      # 61 pruebas, ~31 s en debug (medido 2026-08-05)
 cargo test freno::pruebas::ciento_veinte_intentos   # una sola, por ruta completa
 cargo test freno::                                  # un módulo
 cargo clippy --all-targets -- -D warnings           # EXACTAMENTE lo que corre el CI
@@ -88,6 +88,13 @@ compatibilidad hacia atrás, no decisiones reabiertas:
   mismo esquema que `json.dumps(sort_keys=True, separators=(",",":"))`. Una firma
   hecha aquí verifica contra la rueda de Python de Quipu y al revés; tocar el
   serializador rompe esa equivalencia sin dar ningún error.
+- **la codificación de la firma híbrida** (Ed25519 + ML-DSA-87) tal como la
+  serializa `encode_signed` sobre `dict()`. No es código de guaca —vive en
+  quipu— pero **el formato viaja en cada firma que un consumidor guarda**, así
+  que romperlo aquí abajo hace que toda historia clínica y toda bitácora ya
+  firmadas se lean como manipuladas. Lo ancla desde el 2026-08-05
+  `firma::una_firma_de_2026_sigue_verificando`, con una firma emitida por
+  **guaca `d786d1c` / quipu 0.10.0** y verificada por el binario de hoy.
 - **`auditoria::preimagen`** — `{"cont": …, "prev": hex, "seq": n}`. Cambiarla
   invalida todas las cadenas ya selladas, que es precisamente lo que la cadena
   existe para hacer notar.
@@ -98,9 +105,10 @@ Ante cualquiera de los cuatro: versión nueva y migración explícita del
 consumidor, nunca un cambio en sitio.
 
 **Y desde el 2026-08-04 los cuatro tienen VECTOR FIJO, que es lo que convierte
-esa frase en un mecanismo. Desde el 2026-08-05 son CINCO**: se le añadió el suyo
-a `custodia::derivar`, que se había quedado fuera de aquella pasada y es de
-donde sale la clave maestra. Hasta ese día la lista era prosa: todas las pruebas
+esa frase en un mecanismo. Desde el 2026-08-05 son SEIS**: se le añadió el suyo
+a `custodia::derivar`, de donde sale la clave maestra, y —el mismo día, más
+tarde— a **`firma`**, que era el último módulo persistente sin ancla. Hasta ese
+día la lista era prosa: todas las pruebas
 codificaban y decodificaban con el mismo binario, así que medían el códec contra
 sí mismo y habrían pasado en verde con el formato cambiado. Ahora cada una compara
 contra un artefacto **capturado antes y pegado como literal** — un blob cifrado,
@@ -116,6 +124,16 @@ en el CÓDIGO MEDIDO, no en el arnés:
 | `custodia::recuperar`: base64 url-safe → estándar | `una_comparticion_de_2026_sigue_recuperando` |
 | `custodia::derivar`: pepper `b""` → `b"mutante"` | `una_clave_derivada_de_2026_no_ha_cambiado` |
 | `firma::canonico`: `to_vec` → `to_vec_pretty` | `el_canonico_ordena_las_claves` (ya existía) |
+| `dict()`: alfabeto `0x7e` → `0x7d` | **`firma::una_firma_de_2026_sigue_verificando`** (el sexto) |
+
+**El sexto mutante trae el dato que justifica el vector de `firma`, y es el más
+claro de los seis**: con el alfabeto cambiado, la prueba nueva se puso ROJA y las
+**seis que ya existían en `firma.rs` siguieron en VERDE** —`firma_valida_verifica`,
+`un_cambio_posterior_se_detecta_como_alterada`, `otra_clave_no_verifica` y las
+tres de entrada inválida—. Las seis firman y verifican con el MISMO binario, así
+que un cambio de formato les sale coherente consigo mismo. Llevaban desde
+siempre pareciendo cobertura de `firma`, y no cubrían lo único que no se puede
+rehacer: una firma ya emitida.
 
 De ese último mutante salió el dato que justifica el quinto vector, y vale
 guardarlo: con el pepper cambiado, `una_clave_derivada_de_2026_no_ha_cambiado`
