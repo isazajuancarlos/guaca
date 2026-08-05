@@ -32,13 +32,27 @@ updates:
         # lleva, produjo UNO. Mismo archivo y misma corrida: es la pareja que
         # discrimina.
         #
-        # Y ARREGLAR ESTO NO REPARA LOS PR YA ABIERTOS. Dependabot agrupa al
-        # CREAR: mientras un PR suelto siga abierto, considera esa dependencia
-        # cubierta y no crea nada, así que la corrida siguiente sale `success`
-        # sin agrupar nada — verde y sin efecto. Hay que CERRAR los sueltos
-        # primero y dejar que los vuelva a abrir. Comprobado el 2026-08-04: la
-        # corrida posterior al arreglo terminó en `success` 13 s después del
-        # merge y dejó los cuatro exactamente donde estaban.
+        # Y ARREGLAR ESTO NO REHACE LO YA OFRECIDO, ni abriendo ni cerrando.
+        # Dependabot lleva una lista `existing-pull-requests` por (dependencia,
+        # versión), y **un PR cerrado SIGUE en ella**. Así que no vuelve a
+        # ofrecer esas versiones —agrupadas ni sueltas— hasta que salga una
+        # versión distinta. El 2026-08-04 se probaron las dos vías y ninguna
+        # produjo el PR agrupado: primero con los cuatro abiertos, y después
+        # cerrándolos. Las dos corridas terminaron en `success`.
+        #
+        # EL CONTROL NO ES QUE APAREZCA UN PR — eso puede tardar semanas, hasta
+        # que alguna de esas crates publique. El control es el propio job, que
+        # se lee en el log de la corrida `dynamic` de dependabot:
+        #
+        #   gh run list --limit 5 --json databaseId,event,displayTitle \
+        #     --jq '.[]|select(.event=="dynamic" and (.displayTitle|test("cargo")))|.databaseId' \
+        #     | head -1 | xargs -I{} gh run view {} --log | grep -m1 'Job definition'
+        #
+        # Con el arreglo puesto, ahí sale literalmente
+        # `"dependency-groups":[{"name":"compatibles","rules":{"patterns":["*"],
+        # "update-types":["minor","patch"]}}]`. Eso prueba que la regla está viva
+        # aunque todavía no haya nada que agrupar. Sin `patterns`, `rules` salía
+        # sin él.
         patterns: ["*"]
         update-types: [minor, patch]
     # Y no era cosmético. `sha2` y `hmac` son la misma generación de RustCrypto y
