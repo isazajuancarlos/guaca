@@ -246,13 +246,29 @@ que la derivación ya usaba, así que tampoco habría movido ninguna clave.
 Súmese la directiva 35: en `0.x` el minor hace de major para cargo, así que
 0.10→0.11 es un salto de línea mayor y necesita un motivo, nunca inercia.
 
-**Si algún día hay motivo, guaca sube PRIMERO y tunjo detrás en un solo commit**
-—tunjo no puede subir solo sin meter dos copias de la pila cripto en su
-binario—, y ese camino termina en publicar, que es «pregunta antes». Antes de
-mover nada hay que verificar la compatibilidad hacia atrás de `custodia`:
-`derive_master_key` con `KdfParams::default()` tiene que seguir dando la MISMA
-maestra bajo 0.11, o las bóvedas existentes dejan de abrirse. Tunjo ya verificó
-lo suyo cruzando binarios; **esto no está verificado y no se puede suponer.**
+**Si algún día hay motivo, guaca sube PRIMERO y tunjo detrás** —tunjo no puede
+subir solo sin meter dos copias de la pila cripto en su binario—, y ese camino
+termina en publicar, que es «pregunta antes».
+
+**La compatibilidad con 0.11 SÍ está verificada** (2026-08-05). Aquí decía que no
+lo estaba y que no se podía suponer; se midió, y el resultado es que guaca
+compila y pasa **56/56** contra `quipu 0.11.0` en un worktree aislado, con los
+cinco vectores fijos dentro — incluido `un_blob_de_2026_sigue_descifrando`, que
+es lo que prueba que un blob escrito con 0.10 se abre con 0.11.
+
+Lo que faltaba era `custodia::derivar`, y **ya no falta**: `derive_master_key`
+con `KdfParams::default()` da la MISMA maestra byte a byte bajo 0.10 y 0.11
+—medido con un arnés pareado, un binario por versión, comprobando en los dos
+`Cargo.lock` que cada uno enlazó la suya—. Y para que eso deje de ser una
+medición de una tarde, la clave quedó pegada como **vector fijo** en
+`una_clave_derivada_de_2026_no_ha_cambiado`. Con el mutante puesto en el código
+medido, esa prueba se pone roja y las dos que ya existían siguen en VERDE: son
+ciegas al KDF porque comparan `derivar()` contra `derivar()` en el mismo
+binario.
+
+Lo que sigue SIN verificar es el otro lado del acoplamiento, y es tarea de
+tunjo: `src/clave.rs` tampoco tiene vector fijo. Que un `.clave` de 0.10 abra
+con 0.11 está comprobado cruzando los binarios reales, pero nada lo sujeta.
 
 **Los tags son anotados, uno por versión, y `v0.4.0` se puso el 2026-08-04** —
 faltaba desde que se subió el número—. Los cuatro, comprobados en `origin`:
