@@ -97,6 +97,33 @@ compatibilidad hacia atrás, no decisiones reabiertas:
 Ante cualquiera de los cuatro: versión nueva y migración explícita del
 consumidor, nunca un cambio en sitio.
 
+**Y desde el 2026-08-04 los cuatro tienen VECTOR FIJO, que es lo que convierte
+esa frase en un mecanismo.** Hasta ese día la lista era prosa: todas las pruebas
+codificaban y decodificaban con el mismo binario, así que medían el códec contra
+sí mismo y habrían pasado en verde con el formato cambiado. Ahora cada una compara
+contra un artefacto **capturado antes y pegado como literal** — un blob cifrado,
+dos comparticiones, un hash de cadena, un token—. Comprobado rompiendo el formato
+en el CÓDIGO MEDIDO, no en el arnés:
+
+| Se rompió esto | Se puso roja |
+|---|---|
+| `dict()`: alfabeto `0x7e` → `0x7d` | `reposo::un_blob_de_2026_sigue_descifrando` (`CodebookMismatch`) |
+| `auditoria::preimagen`: clave `"cont"` → `"contenido"` | `el_hash_de_una_entrada_de_2026_no_ha_cambiado` |
+| `sesion::firmar`: un byte más en el HMAC | `un_token_de_2026_sigue_verificando` |
+| `sesion::verificar`: separador `\|` → `.` | `un_token_de_2026_sigue_verificando` |
+| `custodia::recuperar`: base64 url-safe → estándar | `una_comparticion_de_2026_sigue_recuperando` |
+| `firma::canonico`: `to_vec` → `to_vec_pretty` | `el_canonico_ordena_las_claves` (ya existía) |
+
+**Si una de esas se pone roja, NO se regenera el literal.** Roja significa que lo
+guardado hasta hoy dejó de leerse: archivos cifrados que no abren, bitácoras que
+se acusan solas de manipuladas, sesiones cerradas de golpe. Es una rotura de
+compatibilidad que se decide y se comunica, no un vector que envejeció.
+
+La única que sí puede envejecer legítimamente es la de `sesion`, porque su token
+lleva caducidad —2226—; por eso lleva al lado
+`el_vector_de_sesion_no_esta_a_punto_de_caducar`, que avisa con diez años de
+margen y dice cómo regenerarlo.
+
 ## El contrato con las aplicaciones que la consumen
 
 **guaca no tiene estado, ni base de datos, ni framework web, y no los va a
