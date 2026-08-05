@@ -253,6 +253,14 @@ quitándola de verdad, no razonado. El motivo va escrito en la propia línea del
 25 — guaca está en la lista de repos sensibles). La skill construye su diff con
 el `cwd`; lanzada desde otro repo da un diff vacío en silencio.
 
+**Salvo que el diff sea inerte** —prosa y comentarios, nada más—, exención que se
+acotó el 2026-08-04 precisamente aquí: la revisión corrió cuatro veces en una
+tarde y tres fueron sobre diffs sin una línea ejecutable. El comando que lo
+decide está en la directiva 25; se salta **diciéndolo**, nunca en silencio. Ojo
+con la tentación de ampliar la exención a «configuración declarativa»: un
+`dependabot.yml` que gana `target-branch` apaga las alertas de CVE sin ejecutar
+nada, y un workflow puede cambiar `permissions:` sin añadir un solo `run:`.
+
 ## Estilo del código
 
 Todo en español: módulos, funciones, tipos, variantes de enum y nombres de
