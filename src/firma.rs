@@ -146,8 +146,25 @@ mod pruebas {
     // EL VECTOR FIJO. El sexto, y el que faltaba.
     // ---------------------------------------------------------------------
 
-    /// Emitido el 2026-08-05 con **guaca `d786d1c` / quipu 0.10.0** —el árbol
-    /// anterior al salto—, y verificado aquí con el binario de hoy.
+    /// Emitido el 2026-08-05 por `herramientas/emitir-vector-de-firma`, que se
+    /// versiona junto a esto **con su `Cargo.lock`**: ahí se lee `quipu 0.10.0` y
+    /// `guaca` fijada en `d786d1c`, el árbol anterior al salto.
+    ///
+    /// Lo que eso da es **procedimiento auditable, no vector reproducible**, y la
+    /// diferencia importa: `generar_claves()` produce un par nuevo en cada
+    /// corrida y ML-DSA-87 firma con aleatoriedad, así que volver a lanzar el
+    /// emisor da OTRO vector, igual de válido y con otros bytes. Lo que queda
+    /// fijado —y es lo que faltaba— es contra qué versión se emite.
+    ///
+    /// **Lo que este vector NO prueba, y hay que decirlo aquí.** La primera
+    /// versión de este comentario decía «emitido con quipu 0.10, luego prueba la
+    /// transición 0.10 → 0.11». Eso afirmaba de más: la revisión de guaca#18 lo
+    /// midió con dos arneses aislados y la matriz emisión×verificación entre
+    /// 0.10 y 0.11 sale **4/4 en verde** — una firma emitida por 0.11 verifica
+    /// bajo 0.10 y al revés—, así que **el artefacto no lleva huella de la
+    /// versión que lo emitió** y la afirmación era infalsificable mirando el
+    /// archivo. Lo que sí prueba, que es lo que hace falta: que un artefacto
+    /// congelado hoy siga abriéndose mañana, pase lo que pase aguas arriba.
     ///
     /// Lo que ata es la **codificación de la firma híbrida** (Ed25519 +
     /// ML-DSA-87) y el `dict()` con que se serializa: los dos entran en el

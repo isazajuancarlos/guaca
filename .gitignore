@@ -1,4 +1,7 @@
-/target
+# `target/` SIN barra inicial: la barra lo ancla a la RAÍZ, y el 2026-08-05 eso
+# dejó pasar 792 archivos del `target/` de herramientas/emitir-vector-de-firma
+# a un `git add -A`. Sin ancla, casa a cualquier profundidad.
+target/
 
 # Transcripciones que deja el hook guardar_conversacion.py: son respaldo
 # local, no historia del proyecto (ya se ignora en los otros 16 repos).

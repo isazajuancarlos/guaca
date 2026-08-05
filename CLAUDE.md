@@ -124,16 +124,36 @@ en el CÓDIGO MEDIDO, no en el arnés:
 | `custodia::recuperar`: base64 url-safe → estándar | `una_comparticion_de_2026_sigue_recuperando` |
 | `custodia::derivar`: pepper `b""` → `b"mutante"` | `una_clave_derivada_de_2026_no_ha_cambiado` |
 | `firma::canonico`: `to_vec` → `to_vec_pretty` | `el_canonico_ordena_las_claves` (ya existía) |
-| `dict()`: alfabeto `0x7e` → `0x7d` | **`firma::una_firma_de_2026_sigue_verificando`** (el sexto) |
 
-**El sexto mutante trae el dato que justifica el vector de `firma`, y es el más
-claro de los seis**: con el alfabeto cambiado, la prueba nueva se puso ROJA y las
-**seis que ya existían en `firma.rs` siguieron en VERDE** —`firma_valida_verifica`,
+**El mismo mutante de `dict()` de la primera fila pone roja también
+`firma::una_firma_de_2026_sigue_verificando`**, y ése es el dato que justifica el
+sexto vector. No va como fila aparte a propósito: es un mutante, no dos, y
+listarlo dos veces hacía leer la tabla como si hubiera ocho.
+
+Con el alfabeto cambiado, en `firma.rs` se ponen rojas **dos** de las tres
+pruebas nuevas —`una_firma_de_2026_sigue_verificando` y
+`el_vector_de_firma_discrimina`, ésta por `Invalida` y no por `Alterada`— y las
+**seis que ya existían siguen en VERDE**: `firma_valida_verifica`,
 `un_cambio_posterior_se_detecta_como_alterada`, `otra_clave_no_verifica` y las
-tres de entrada inválida—. Las seis firman y verifican con el MISMO binario, así
+tres de entrada inválida. Las seis firman y verifican con el MISMO binario, así
 que un cambio de formato les sale coherente consigo mismo. Llevaban desde
 siempre pareciendo cobertura de `firma`, y no cubrían lo único que no se puede
 rehacer: una firma ya emitida.
+
+Dos matices del sexto que conviene no leer de más, los dos medidos en la
+revisión de guaca#18:
+
+- **`el_vector_de_firma_discrimina` no es un control independiente**, es un
+  segundo ancla del mismo formato: cae con el mismo mutante. El control de
+  verdad de la pareja es otro —romper la comparación del payload en
+  `firma::verificar`—, y ahí sí: `una_firma_de_2026_sigue_verificando` queda
+  VERDE y solo cae su pareja. Que es exactamente para lo que existe.
+- **El vector ancla la CODIFICACIÓN, no la fuerza del esquema.** Si una versión
+  futura de quipu dejara de verificar la mitad ML-DSA y comprobara solo Ed25519,
+  la firma congelada seguiría verificando y las tres pruebas seguirían verdes
+  mientras la propiedad post-cuántica desaparece en silencio. Eso no lo puede ver
+  ninguna prueba de guaca —es del lado de quipu—, y por eso queda escrito: su
+  verde **no** dice «la firma híbrida sigue siendo híbrida».
 
 De ese último mutante salió el dato que justifica el quinto vector, y vale
 guardarlo: con el pepper cambiado, `una_clave_derivada_de_2026_no_ha_cambiado`
@@ -283,8 +303,20 @@ y lo que arrastra guaca por el `rev`—, medido el 2026-08-05.
 VECTOR FIJO se pone rojo, la subida SE DETIENE y vuelve a ser una decisión.** Un
 rojo ahí no es una prueba quisquillosa: dice que lo ya cifrado dejó de abrirse.
 No se regenera el literal — eso convierte una rotura de compatibilidad en un
-verde. Los cinco vectores están arriba, con la tabla de mutantes que demuestra
+verde. Los **seis** vectores están arriba, con la tabla de mutantes que demuestra
 que cada uno discrimina.
+
+**Y hoy nada lo IMPIDE: solo está escrito.** No hay hook, ni `CODEOWNERS`, ni
+comprobación de CI que detecte que un archivo de `src/vectores/` cambió en un PR
+— es la directiva 6 sin cumplir (máquina que impide > prueba que falla >
+directiva que recordar) justo donde más caro sale, porque el arreglo tentador
+—regenerar el literal y ver verde— es *más barato* que el correcto. Y el paso a
+archivos lo empeora un poco frente a los cinco literales en línea: un literal
+alterado salta a la vista en el diff de `firma.rs`; un `firma_2026.txt` de 5883
+caracteres reescrito entero es una sola línea `+`/`-` que nadie va a leer. Está
+registrado como tarea `#489`, y la guardia barata que sí discriminaría es un job
+que falle si el diff toca `src/vectores/` y el PR no lleva etiqueta explícita de
+rotura de compatibilidad.
 
 **El orden con tunjo son TRES pasos, no dos**, y el tercero es el que se olvida:
 
