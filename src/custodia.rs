@@ -107,6 +107,69 @@ pub fn recuperar(comparticiones: &[String]) -> Result<Zeroizing<Vec<u8>>, Custod
 mod pruebas {
     use super::*;
 
+    /// La clave que `derivar` produjo con quipu 0.10.0 el 2026-08-05, pegada aquí
+    /// como literal. No se regenera: ese es el punto.
+    const CLAVE_2026: &str = "4e84427668011ea9356c2158aabf331dd705dd4f8ae4a189e8adf65f079433aa";
+    const SECRETO_2026: &str = "secreto-de-despliegue-largo";
+    const SAL_2026: [u8; SAL_LEN] = [7u8; SAL_LEN];
+
+    fn hex(b: &[u8]) -> String {
+        b.iter().map(|x| format!("{x:02x}")).collect()
+    }
+
+    /// **El vector fijo que le faltaba a este módulo, y por qué las dos de abajo
+    /// no bastan.**
+    ///
+    /// `la_derivacion_es_determinista` compara `derivar()` contra `derivar()` en
+    /// el MISMO binario, y `distinto_salt_da_distinta_clave` también: las dos
+    /// pasarían igual aunque el KDF cambiara de raíz, porque miden la función
+    /// contra sí misma. Es el mismo defecto que `reposo` ya cerró con su blob de
+    /// 2026 y que aquí seguía abierto — encontrado el 2026-08-05 al verificar la
+    /// compatibilidad con quipu 0.11.
+    ///
+    /// Lo que hay detrás no es una preferencia de estilo: si el KDF se moviera,
+    /// todo lo derivado con la versión anterior dejaría de abrirse **y ninguna
+    /// prueba de este archivo lo diría**.
+    ///
+    /// El ancla es PROSPECTIVA, y conviene decirlo porque la versión anterior de
+    /// este comentario afirmaba que «de esta clave cuelgan las bóvedas ya
+    /// cifradas» y era **falso**: medido el 2026-08-05, `custodia` tiene **cero
+    /// llamadas** en los consumidores —`claves` 31, `firma` 28, `freno` 27,
+    /// `reposo` 21, `sesion` 11, `auditoria` 4, `custodia` 0—. Que no lo use
+    /// nadie todavía es justo por qué el vector se pone AHORA: capturarlo antes
+    /// del primer cliente cuesta esto; después obliga a elegir entre romperle la
+    /// bóveda o congelar el KDF sin saber cuál era.
+    ///
+    /// Si se pone roja al subir `quipu` o `argon2`, NO se regenera el literal:
+    /// significa que todo lo derivado hasta hoy dejó de abrirse, y eso es una
+    /// rotura de compatibilidad que se decide, no se tapa.
+    ///
+    /// Comprobado contra los dos artefactos el 2026-08-05: quipu **0.10.0** (lo
+    /// que pide el `Cargo.toml`) y quipu **0.11.0** (lo publicado) dan esta misma
+    /// clave byte a byte.
+    #[test]
+    fn una_clave_derivada_de_2026_no_ha_cambiado() {
+        assert_eq!(
+            hex(&derivar(SECRETO_2026, &SAL_2026)),
+            CLAVE_2026,
+            "el KDF se movió: las bóvedas derivadas hasta hoy ya no abren"
+        );
+    }
+
+    /// La pareja de la anterior, y falla POR LA VÍA REAL. No voltea un byte del
+    /// literal —eso solo probaría que la prueba sabe leer una cadena—: cambia la
+    /// ENTRADA como la cambiaría un error de configuración de verdad (otro
+    /// secreto de despliegue) y exige que la clave ya no case. Sin esto, un
+    /// `derivar` que devolviera una constante pasaría la prueba de arriba.
+    #[test]
+    fn el_vector_distingue_el_secreto() {
+        let otra = hex(&derivar("secreto-DISTINTO-igual-de-largo", &SAL_2026));
+        assert_ne!(
+            otra, CLAVE_2026,
+            "dos secretos distintos dan la misma clave: el vector no mide nada"
+        );
+    }
+
     #[test]
     fn la_derivacion_es_determinista() {
         let sal = [7u8; SAL_LEN];
