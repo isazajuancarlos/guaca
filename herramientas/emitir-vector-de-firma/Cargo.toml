@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (c) 2026 Juan Carlos Isaza Arenas
+#
+# EL EMISOR DEL VECTOR FIJO DE FIRMA. Se corre UNA VEZ y se versiona, y las dos
+# cosas son el punto.
+#
+# POR QUÉ EXISTE. `src/firma.rs` congela una firma híbrida y afirma de dónde
+# salió. La revisión de guaca#18 midió que **el artefacto no lleva huella de la
+# versión que lo emitió**: con dos arneses aislados, la matriz emisión×
+# verificación entre quipu 0.10 y 0.11 sale 4/4 en verde. O sea que «lo emitió la
+# 0.10» era, mirando solo el archivo, una afirmación infalsificable — y una
+# afirmación que nadie puede comprobar es exactamente lo que un vector fijo
+# existe para no ser.
+#
+# Este paquete la vuelve comprobable, y no por el código sino por su
+# **`Cargo.lock`, que también se versiona**: ahí se lee `quipu 0.10.0` y `guaca`
+# fijada en `d786d1c`, el árbol anterior al salto. Eso es evidencia con fecha, no
+# un comentario.
+#
+# LO QUE ESTO **NO** ES, y conviene decirlo para no caer en la misma trampa una
+# segunda vez: no hace el vector REPRODUCIBLE. `generar_claves()` da un par nuevo
+# en cada corrida y ML-DSA-87 firma con aleatoriedad, así que volver a lanzarlo
+# produce otro vector —igual de válido, otros bytes—. Lo que queda fijado es el
+# PROCEDIMIENTO y la versión contra la que se emite, que es justo lo que faltaba.
+#
+# NO ES PARTE DE guaca. guaca es un `[package]` suelto, no un workspace, así que
+# esta carpeta no entra en su `cargo build` ni en su `cargo test`; hay que
+# entrar aquí para correrla. Se deja fuera a propósito: fija una versión ANTIGUA
+# de quipu, y meterla en el árbol principal traería dos quipu al grafo.
+#
+# CÓMO SE VUELVE A CORRER, el día que haga falta otro vector:
+#
+#     cd herramientas/emitir-vector-de-firma
+#     cargo run --release --locked     # --locked: sin él, el lock deja de ser evidencia
+#
+# Imprime `PREIMAGEN_HEX=`, `VK=` y `FIRMA=`, que van a `src/vectores/`. **El
+# `--locked` no es opcional**: sin él cargo puede reescribir el lock y entonces
+# el archivo que se versiona deja de decir contra qué se emitió, que es su único
+# trabajo.
+[package]
+name = "emitir-vector-de-firma"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# guaca en el commit ANTERIOR al salto a quipu 0.11 — el que arrastra quipu 0.10.
+guaca = { git = "https://github.com/isazajuancarlos/guaca", rev = "d786d1c394ddc816f6959c12696ec2c6742acb28" }
+serde_json = "1"
