@@ -1,1 +1,5 @@
 /target
+
+# Transcripciones que deja el hook guardar_conversacion.py: son respaldo
+# local, no historia del proyecto (ya se ignora en los otros 16 repos).
+conversaciones/
