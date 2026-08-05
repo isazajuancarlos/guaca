@@ -138,13 +138,26 @@ sparse: `NoSuchKey`). Los tres consumidores la fijan por **`rev` de git**, nunca
 por tag —un tag es mutable, y moverlo a un commit malicioso nos lo traería al
 construir: es el ataque Atomic Arch—:
 
-Contado con `grep -o 'guaca::[a-z_]*' | sort | uniq -c` sobre los tres árboles el
-2026-08-04, no deducido del README:
+**Esto se MIDE, no se recuerda.** Cada consumidor se lleva desde su propia
+instancia, así que su `rev` y sus llamadas cambian sin que aquí ocurra nada — el
+2026-08-04 los dos primeros pasaron de `2ffe134` a `d786d1c` mientras se escribía
+esta misma sección. Los dos comandos, probados tal cual:
 
-| Consumidor | Qué usa (llamadas) | `rev` fijado |
+```bash
+grep -rho 'guaca::[a-z_]*' /mnt/data/medico /mnt/data/informes /mnt/data/tunjo \
+  --include=*.rs | sort | uniq -c
+grep -rn 'guaca = ' /mnt/data/medico/Cargo.toml \
+  /mnt/data/informes/rust/siger-api/Cargo.toml /mnt/data/tunjo/Cargo.toml
+```
+
+Lo estable es **qué módulo usa cada uno** —eso solo cambia cuando alguien decide
+usar otro—; el número de llamadas se mueve cada tarde y no vale la pena fijarlo
+aquí.
+
+| Consumidor | Qué módulos usa | `rev` (medido 2026-08-04) |
 |---|---|---|
-| `/mnt/data/medico` | `firma` (29), `freno` (7), `auditoria` (4), `reposo` (2) | `2ffe134` |
-| `/mnt/data/informes` | `freno`, `reposo` (cifrado de entregas) | `2ffe134`, `version = "0.4"` |
+| `/mnt/data/medico` | `firma`, `freno`, `auditoria`, `reposo` | `d786d1c` (= tag `v0.4.0`) |
+| `/mnt/data/informes` | `freno`, `reposo` (cifrado de entregas) | `d786d1c`, `version = "0.4"` |
 | `/mnt/data/tunjo` | `auditoria` con firmante triple propio | `9d26cce` (= tag `v0.3.0`) |
 
 **`claves` y `sesion` no los usa NADIE: cero llamadas en los tres.** Y no es que
@@ -155,18 +168,20 @@ declara su propio `password-hash`. Es exactamente la duplicación que el README
 dice en pasado y aún está en presente. Migrar `informes` a `guaca::claves` es lo
 que vuelve cierta esa frase.
 
-**Los dos primeros NO apuntan al tag `v0.4.0`, y conviene saber por qué.** El tag
-se puso el 2026-08-04 sobre `d786d1c` y no sobre `2ffe134`, que es donde se subió
-el número: entre esos dos commits `src/`, `Cargo.toml` y `deny.toml` son
-**idénticos** —la librería es la misma— y lo único que añade `d786d1c` es el
-archivo `LICENSE`. Etiquetar `2ffe134` habría dejado una referencia pública
-permanente a un árbol sin licencia, que en un repositorio público GitHub lee como
-«todos los derechos reservados».
+**Por qué el tag `v0.4.0` está en `d786d1c` y no en `2ffe134`**, que es donde se
+subió el número y donde apuntaban los dos consumidores hasta esa tarde: entre
+esos dos commits `src/`, `Cargo.toml` y `deny.toml` son **idénticos** —la
+librería es la misma— y lo único que añade `d786d1c` es el archivo `LICENSE`.
+Etiquetar `2ffe134` habría dejado una referencia pública y permanente a un árbol
+sin licencia, que en un repositorio público GitHub lee como «todos los derechos
+reservados». Un tag no se mueve; el sitio importa.
 
-La consecuencia es que **medico e informes vendorizan hoy un árbol sin
-`LICENSE`**. No cambia qué código ejecutan —es el mismo—, pero mover los dos
-`rev` a `d786d1c` cuesta una línea en cada uno y deja el árbol completo. Es un
-cambio de otros dos repositorios: el hook de aislamiento preguntará.
+Mientras apuntaron a `2ffe134`, medico e informes **vendorizaban un árbol sin
+`LICENSE`** — mismo código, árbol incompleto. Los dos subieron a `d786d1c` el
+mismo 2026-08-04, cada uno desde su instancia. Se deja escrito porque es el modo
+de fallo, no el incidente: **un `rev` a pelo no dice de qué versión sale**, y
+cualquier commit vale como ancla aunque le falte medio árbol. Fijar el commit del
+tag lo cierra.
 
 **Publicar aquí no actualiza a nadie.** Subir la versión obliga a editar el `rev`
 en cada consumidor que deba recibirlo, y eso es la directiva 24 en la misma

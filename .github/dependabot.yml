@@ -31,6 +31,14 @@ updates:
         # #8 password-hash, #9 base64); el grupo `acciones` de abajo, que sí lo
         # lleva, produjo UNO. Mismo archivo y misma corrida: es la pareja que
         # discrimina.
+        #
+        # Y ARREGLAR ESTO NO REPARA LOS PR YA ABIERTOS. Dependabot agrupa al
+        # CREAR: mientras un PR suelto siga abierto, considera esa dependencia
+        # cubierta y no crea nada, así que la corrida siguiente sale `success`
+        # sin agrupar nada — verde y sin efecto. Hay que CERRAR los sueltos
+        # primero y dejar que los vuelva a abrir. Comprobado el 2026-08-04: la
+        # corrida posterior al arreglo terminó en `success` 13 s después del
+        # merge y dejó los cuatro exactamente donde estaban.
         patterns: ["*"]
         update-types: [minor, patch]
     # Y no era cosmético. `sha2` y `hmac` son la misma generación de RustCrypto y
