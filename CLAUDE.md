@@ -248,40 +248,37 @@ en cada consumidor que deba recibirlo, y eso es la directiva 24 en la misma
 pasada — el hook de aislamiento preguntará al escribir en `medico`, `informes` o
 `tunjo`, y hay que aceptarlo, no dejarlo anotado.
 
-**Hacia abajo, guaca pide `quipu = "0.10"` de crates.io mientras el árbol de
-decod va por `0.11.0`.** `^0.10` NO casa con 0.11: publicar Quipu 0.11 no llega
-aquí sola. Verificado en el `Cargo.lock` local: resuelve `quipu 0.10.0` de
-crates.io.
+**Hacia abajo, guaca va SIEMPRE a la versión actual de Quipu** — hoy
+`quipu = "0.11"`, resuelto a `0.11.0` en el `Cargo.lock`. Es una regla de la
+familia, decidida por Juan el **2026-08-05**, y sustituye a la decisión que
+estuvo escrita aquí unas horas de quedarse en la 0.10.
 
-**Y se QUEDA en 0.10 — decidido el 2026-08-05.** Hasta ese día esto decía «subir
-el requisito es una decisión aparte», que es cierto y deja la duda abierta para
-que la reabra el siguiente que vea la 0.11 publicada. Ya está tomada, con los
-tres motivos posibles comprobados y refutados:
+**El motivo es que Quipu es NUESTRA.** La directiva 35 —agotar la línea actual,
+el salto mayor con motivo y nunca por inercia— existe para no perseguir el
+*major* de un tercero entre visitas al cliente. Aquí las dos puntas son de casa:
+quien corta la release decide también cuándo la toman los derivados. Y quedarse
+atrás tiene un coste que ir al día no tiene: mientras guaca y tunjo no vayan
+parejos, el binario de tunjo acaba con **dos copias de la pila cripto** —lo suyo
+y lo que arrastra guaca por el `rev`—, medido el 2026-08-05.
 
-1. **El cambio de comportamiento no nos toca.** La 0.11 hace que
-   `Options.codebook_id` se IGNORE. `src/reposo.rs:26` llama a `encode_to_blob`
-   con `Options::default()` y `src/custodia.rs:70` deriva con
-   `KdfParams::default()`: no fijamos `codebook_id` en ningún sitio.
-2. **La mejora de enlazabilidad (N9) tampoco.** Poner `codebook_id` en cero
-   existe para quien pedía uno propio por autor; con los valores por defecto ya
-   escribíamos la misma huella que todos.
-3. **El `forbid(unsafe_code)` no cambia el artefacto que consumimos.** La 0.10.0
-   publicada no lo lleva y la 0.11.0 sí (comprobado en la fuente del registro,
-   0 contra 1), pero 0.10.0 está congelada en crates.io y su código tiene cero
-   `unsafe` medido: para quien fija esa versión son el mismo artefacto. El
-   `forbid` garantiza el mañana de una línea que no tendrá otro 0.10.x.
+**LA PUERTA, que es lo que separa la regla de la inercia: se sube, y si un
+VECTOR FIJO se pone rojo, la subida SE DETIENE y vuelve a ser una decisión.** Un
+rojo ahí no es una prueba quisquillosa: dice que lo ya cifrado dejó de abrirse.
+No se regenera el literal — eso convierte una rotura de compatibilidad en un
+verde. Los cinco vectores están arriba, con la tabla de mutantes que demuestra
+que cada uno discrimina.
 
-Y el arreglo de seguridad de la 0.11 —`negacion::crear` comparaba contraseñas
-por bytes y el KDF tras NFKC— va en la feature `negacion`, que no compilamos
-(usamos `escrow`). Su corrección centralizó la COMPARACIÓN en `kdf::normalizar`,
-que la derivación ya usaba, así que tampoco habría movido ninguna clave.
+**El orden con tunjo son TRES pasos, no dos**, y el tercero es el que se olvida:
 
-Súmese la directiva 35: en `0.x` el minor hace de major para cargo, así que
-0.10→0.11 es un salto de línea mayor y necesita un motivo, nunca inercia.
+1. guaca sube `quipu` y entra en `main`.
+2. tunjo sube `quipu` **y** mueve el `rev` de guaca a ese commit, **en el mismo
+   commit suyo**. Si solo sube `quipu`, sigue arrastrando la versión vieja por
+   el `rev` viejo.
+3. Control de que salió bien, antes de dar nada por bueno:
+   `grep -c '^name = "quipu"$' Cargo.lock` tiene que dar **1** en tunjo.
 
-**Si algún día hay motivo, guaca sube PRIMERO y tunjo detrás** —tunjo no puede
-subir solo sin meter dos copias de la pila cripto en su binario—, y ese camino
-termina en publicar, que es «pregunta antes».
+`chuspa` no entra en la regla: compila por `path = "../decod"`, así que ya va
+contra el árbol por definición.
 
 **La compatibilidad con 0.11 SÍ está verificada** (2026-08-05). Aquí decía que no
 lo estaba y que no se podía suponer; se midió, y el resultado es que guaca
