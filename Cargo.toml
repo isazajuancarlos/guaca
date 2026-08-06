@@ -44,3 +44,10 @@ password-hash = { version = "0.5", features = ["getrandom"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 # Custodia: el secreto reconstruido por Shamir se borra de memoria al soltarlo.
 zeroize = "1"
+
+# Las DEPENDENCIAS optimizadas también en debug: deja NUESTROS crates en debug
+# puro —iteración y depurador intactos— y quita el peaje del banco. Medido en
+# quipu el 2026-08-05: 597,8 s -> 61,2 s (9,8x) con el MISMO conteo de pruebas.
+# `debug_assertions` sigue activo con opt-level > 0, comprobado con su caso rojo.
+[profile.dev.package."*"]
+opt-level = 3
