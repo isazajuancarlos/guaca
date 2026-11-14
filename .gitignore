@@ -1,0 +1,21 @@
+# `target/` SIN barra inicial: la barra lo ancla a la RAÍZ, y el 2026-08-05 eso
+# dejó pasar 792 archivos del `target/` de herramientas/emitir-vector-de-firma
+# a un `git add -A`. Sin ancla, casa a cualquier profundidad.
+target/
+
+# Transcripciones que deja el hook guardar_conversacion.py: son respaldo
+# local, no historia del proyecto (ya se ignora en los otros 16 repos).
+conversaciones/
+
+# --- vendor/: árbol GENERADO, y ninguna regla de arriba le aplica ---
+# Medido el 2026-08-14 CLONANDO, que es la única forma de verlo: `git status` no
+# lista lo ignorado. En guaca, la regla `target/` —sin barra inicial, así que casa
+# a cualquier profundidad— se tragaba `vendor/cc/src/target/`, que es código
+# fuente del crate `cc`. En quipu eran 37 archivos, comidos por las reglas de
+# secretos del OPRF (*.bin, *.key, *.pem, *.db, *.so).
+#
+# El síntoma no aparece aquí: aparece en el clon, con `failed to open file
+# vendor/…` porque cargo verifica el checksum y el archivo no está.
+#
+# `vendor/` lo genera `cargo vendor` y nunca contiene secretos nuestros.
+!vendor/**

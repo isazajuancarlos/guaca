@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (c) 2026 Juan Carlos Isaza
+[package]
+name = "guaca"
+version = "0.7.0"
+edition = "2024"
+description = "Protección en reposo para aplicaciones: cifrado autenticado y firma de registros sobre Quipu (post-cuántico híbrido)."
+authors = ["Juan Carlos Isaza <isazajuancarlos@gmail.com>"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/isazajuancarlos/guaca"
+readme = "README.md"
+keywords = ["encryption", "at-rest", "post-quantum", "signing", "quipu"]
+categories = ["cryptography"]
+
+# Puerta de buenas prácticas por DEFECTO (estándar de nacimiento, 2026-08-22).
+# Solo `deny` porque el CI corre `-D warnings`, que escala todo `warn` a error:
+# aquí solo entra lo que se está dispuesto a BLOQUEAR.
+[lints.clippy]
+redundant_clone = "deny"    # clon innecesario (rendimiento)
+needless_collect = "deny"   # `.collect()` para volver a iterar (rendimiento)
+
+[dependencies]
+# `escrow` abre quipu::shamir (custodia); no arrastra dependencias, solo el módulo.
+quipu = { version = "0.15", features = ["escrow"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Sesión (token HMAC firmado) y contraseñas (Argon2). Primitivos que medico e
+# informes ya tenían copiados —y divergidos—; aquí viven una sola vez.
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+argon2 = "0.5"
+# NO SOBRA, aunque lo parezca: `claves.rs` no la importa —usa el reexport
+# `argon2::password_hash::…`— y `cargo tree` la muestra colgando de argon2, así
+# que se lee como una línea muerta. Lo que hace es habilitar `OsRng`, por la
+# cadena `password-hash/getrandom` → `rand_core/getrandom` → `pub use os::OsRng`.
+# argon2 0.5 no activa ninguna de esas: sin esta línea el build muere con
+# `E0432: unresolved import argon2::password_hash::rand_core::OsRng` (comprobado
+# quitándola, 2026-08-04).
+#
+# `getrandom` y no `std`, que era lo que decía antes: `std` es un superconjunto
+# que además arrastra `base64ct/std`, `rand_core/std` y dos `impl
+# std::error::Error`. Guaca no expone NINGÚN `password_hash::Error` —`hashear`
+# devuelve `Option<String>` y `verificar` un `bool`—, así que estaba activando
+# para terceros una API que no puede alcanzarlos. `getrandom` nombra la razón
+# real, que es lo que impide que alguien vuelva a borrar esta línea.
+password-hash = { version = "0.5", features = ["getrandom"] }
+# Freno al ensayo de contraseñas: la regla decide sobre marcas de tiempo RFC 3339
+# —que es como las guardan las dos apps— y las parsea ella, porque qué hacer con
+# una marca ilegible es una decisión de seguridad y no puede quedarse en la app.
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+# Segundo factor TOTP (RFC 6238). `default-features = false` a propósito: las
+# opciones por defecto de `totp-rs` traen generación de QR y serialización, y el
+# QR lo dibuja cada aplicación en su propio SVG —informes ya lo hace— sin meter
+# un codificador de imágenes en una librería de criptografía.
+totp-rs = { version = "5.7.2", default-features = false, optional = true }
+# Custodia: el secreto reconstruido por Shamir se borra de memoria al soltarlo.
+zeroize = "1"
+
+# ── Lo que no se usa, no se compila y no entra en el árbol ──────────────────────
+#
+# Medido el 2026-08-12 en tunjo: subir `dosfactores` a guaca le metió CUATRO
+# crates —`totp-rs`, `sha1`, `base32`, `constant_time_eq`— por una regla que no
+# llama. Un consumidor que no usa el segundo factor no puede pagar su cadena de
+# suministro: en un universo que se retiró de los registros públicos justo por
+# eso (protocolo «solo local»), cada crate que entra sin motivo es superficie
+# regalada.
+#
+# `default = []` a propósito: el que SÍ lo usa lo pide en una línea, y el que no
+# lo usa no configura nada (directiva 19). `qr` va aparte porque no cuesta
+# dependencias —945 líneas sin una sola— pero solo tiene sentido con el
+# enrolamiento, así que `dosfactores` lo enciende.
+[features]
+default = []
+qr = []
+dosfactores = ["dep:totp-rs", "qr"]
+
+# Las DEPENDENCIAS optimizadas también en debug: deja NUESTROS crates en debug
+# puro —iteración y depurador intactos— y quita el peaje del banco. Medido en
+# quipu el 2026-08-05: 597,8 s -> 61,2 s (9,8x) con el MISMO conteo de pruebas.
+# `debug_assertions` sigue activo con opt-level > 0, comprobado con su caso rojo.
+[profile.dev.package."*"]
+opt-level = 3
+# ═══════════════════════════════════════════════════════════════════════════
+# QUIPU SALE DEL ESPEJO LOCAL, NO DE CRATES.IO
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Medido el 2026-08-14: este repositorio compilaba **quipu 0.11.0 desde
+# crates.io**, y esa versión está **YANKED** — la retiramos nosotros el
+# 2026-08-10 con el protocolo «solo local», junto con otras 23.
+#
+# No estaba roto: estaba DESCONECTADO. Funcionaba porque el `Cargo.lock` está
+# commiteado y cargo tolera un yank que ya está bloqueado. La consecuencia real
+# no era el yank sino la DERIVA: el árbol de quipu iba por 0.11.1 más todo lo
+# posterior mientras aquí se compilaba la 0.11.0, así que nueve días de cambios
+# en la librería criptográfica no llegaban.
+#
+# Y para un repositorio NUEVO ni siquiera funcionaba: `cargo vendor` fallaba con
+# «version 0.11.0 is yanked», que es exactamente el fallo que abrió este trabajo.
+#
+# `[patch]` SOLO lo honra el paquete RAÍZ del workspace, no una dependencia.
+#
+# El rev es el de `estable`, que por definición es lo publicado y no puede estar
+# roja. No se toma «el último por ser el último» (directiva 35).
+[patch.crates-io]
+quipu = { git = "file:///home/juan/espejos/quipu.git", rev = "cd30c1b0183ab7c68a8122ca4f269ae04e7e2d27" }
